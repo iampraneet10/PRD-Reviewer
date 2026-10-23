@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PRD Reviewer</title>
+<style>
+:root{--bg:#f6f0e1;--card:#fffaf0;--ink:#1d1d1f;--mute:#6b6b70;--line:#e3dac3;--acc:#3b5bdb;--acc-ink:#fff;--bad:#c92a2a;--warn:#e67700;--ok:#2b8a3e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--card:#202024;--ink:#f1f1f3;--mute:#9a9aa3;--line:#33333a;--acc:#748ffc;--acc-ink:#111;--bad:#ff8787;--warn:#ffa94d;--ok:#69db7c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17171a;--card:#202024;--ink:#f1f1f3;--mute:#9a9aa3;--line:#33333a;--acc:#748ffc;--acc-ink:#111;--bad:#ff8787;--warn:#ffa94d;--ok:#69db7c;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:28px 18px 60px}
+.eyebrow{text-align:center;font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin-bottom:6px}
+h1{font-size:2.1rem;margin:0 0 6px;letter-spacing:-.02em;text-align:center}
+.sub{color:var(--mute);margin:0 auto 24px;text-align:center;max-width:520px}
+textarea{width:100%;min-height:220px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;resize:vertical}
+textarea:focus{outline:2px solid var(--acc);outline-offset:1px}
+.row{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 0;align-items:center;justify-content:center}
+button{font:inherit;padding:10px 18px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.p{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600;padding:12px 28px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+textarea{box-shadow:0 1px 3px rgba(0,0,0,.05)}
+#status{text-align:center;margin-top:12px;min-height:1.4em}
+.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+.chips span{font-size:.82rem;color:var(--mute);border:1px solid var(--line);background:var(--card);padding:4px 12px;border-radius:99px}
+button:disabled{opacity:.55;cursor:default}
+.hint{color:var(--mute);font-size:.88rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:16px 0}
+.card h2{font-size:1.05rem;margin:0 0 10px}
+.score{display:flex;gap:16px;align-items:center}
+.num{font-size:2.6rem;font-weight:700;line-height:1}
+.item{border-top:1px solid var(--line);padding:10px 0}
+.item:first-of-type{border-top:0}
+.tag{display:inline-block;font-size:.78rem;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mute);margin-right:6px}
+.q{color:var(--mute);font-style:italic}
+.err{color:var(--bad)}
+.drop{margin-top:12px;border:1.5px dashed color-mix(in srgb,var(--mute) 45%,transparent);border-radius:12px;padding:20px 14px;background:var(--card);color:var(--mute);font-size:.92rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop:focus-visible{border-color:var(--acc);outline:none}
+.drop.on{border-style:solid;border-color:var(--acc);background:color-mix(in srgb,var(--acc) 8%,var(--card))}
+.drop svg{width:28px;height:28px;stroke:var(--ink);margin-bottom:6px}
+.drop .dt{color:var(--ink)}
+.drop.on .dt{color:var(--acc)}
+.lnk{color:var(--acc);text-decoration:underline}
+.fchip{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:.9rem}
+.fchip[hidden]{display:none}
+.fchip .fn{font-weight:600;word-break:break-all}
+.fchip .rm{margin-left:auto;padding:4px 12px;font-size:.85rem}
+</style>
+</head>
+<body>
+<main>
+<h1>PRD Reviewer</h1>
+<p class="sub">Paste a draft PRD or feature spec. Get the critique engineering would give you, before you send it.</p>
+<textarea id="prd" placeholder="Paste your PRD here…"></textarea>
+<div class="drop" id="drop" role="button" tabindex="0" aria-label="Upload a PRD file">
+<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+<div class="dt"><b>Drop your PRD here</b> or <span class="lnk">browse files</span></div>
+<div class="hint">.txt, .md or .docx · up to 5 MB</div>
+</div>
+<input type="file" id="file" accept=".txt,.md,.markdown,.docx" hidden>
+<div class="fchip" id="fchip" hidden></div>
+<div class="row">
+<button class="p" id="go">Review my PRD</button>
+<button id="ex">Try a sample</button>
+</div>
+<div class="hint" id="status"></div>
+<div class="chips"><span>Readiness score</span><span>11-point scorecard</span><span>Vague language</span><span>Missing pieces</span><span>Testable requirements</span><span>Engineering questions</span></div>
+<div id="out"></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var prd=$("prd"),go=$("go"),out=$("out"),st=$("status");
+var SAMPLE="Feature: Smart Reminders\n\nGoal: Make the app more engaging and user friendly.\n\nUsers get reminders at the right time. The system should send notifications quickly and be reliable. Users can customize reminders. Support all major devices. The experience should feel seamless.\n\nRequirements:\n1. Notifications are fast.\n2. Users can edit reminders easily.\n3. The feature should scale.";
+var last=null;
+
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function card(title){var c=el("div","card");c.appendChild(el("h2",null,title));return c}
+function item(c,tag,main,sub,extra){
+  var d=el("div","item");
+  if(tag)d.appendChild(el("span","tag",tag));
+  d.appendChild(el("span",null,main));
+  if(sub){var s=el("div","hint",sub);s.style.marginTop="4px";d.appendChild(s)}
+  if(extra){var x=el("div",null,extra);x.style.marginTop="4px";d.appendChild(x)}
+  c.appendChild(d);
+}
+function parse(t){
+  t=String(t).replace(/```json|```/g,"").trim();
+  var a=t.indexOf("{"),b=t.lastIndexOf("}");
+  if(a<0||b<0)throw new Error("bad");
+  return JSON.parse(t.slice(a,b+1));
+}
+function render(r){
+  last=r;out.textContent="";
+  var s=card("Readiness");var sc=el("div","score");
+  var n=el("div","num",String(r.score));
+  n.style.color=r.score>=75?"var(--ok)":r.score>=50?"var(--warn)":"var(--bad)";
+  sc.appendChild(n);sc.appendChild(el("div",null,r.verdict||""));s.appendChild(sc);out.appendChild(s);
+  if((r.scorecard||[]).length){var sk=card("Scorecard");
+    r.scorecard.forEach(function(x){
+      var v2=String(x.status||"").toLowerCase();
+      var tg=el("span","tag",v2==="pass"?"Pass":v2==="partial"?"Partial":"Fail");
+      var col=v2==="pass"?"var(--ok)":v2==="partial"?"var(--warn)":"var(--bad)";
+      tg.style.color=col;tg.style.borderColor=col;
+      var d=el("div","item");d.appendChild(tg);d.appendChild(el("b",null,x.name||""));
+      if(x.note){var nn=el("div","hint",x.note);nn.style.marginTop="4px";d.appendChild(nn)}
+      sk.appendChild(d);
+    });out.appendChild(sk)}
+  if((r.vague||[]).length){var c=card("Vague language");
+    r.vague.forEach(function(v){item(c,null,"“"+v.quote+"”",v.issue,"Try: "+v.fix)});out.appendChild(c)}
+  if((r.missing||[]).length){var c2=card("Missing pieces");
+    r.missing.forEach(function(m){item(c2,null,m.item,m.why)});out.appendChild(c2)}
+  if((r.requirements||[]).length){var c3=card("Requirements to tighten");
+    r.requirements.forEach(function(q){item(c3,null,q.text,q.problem,"Acceptance criteria: "+q.criteria)});out.appendChild(c3)}
+  if((r.questions||[]).length){var c4=card("Questions engineering will ask");
+    r.questions.forEach(function(q){item(c4,null,q)});out.appendChild(c4)}
+  var row=el("div","row");var cp=el("button",null,"Copy as checklist");
+  cp.onclick=function(){copy(checklist(r),cp)};row.appendChild(cp);out.appendChild(row);
+}
+function checklist(r){
+  var L=["PRD review (readiness "+r.score+"/100)",""];
+  (r.scorecard||[]).forEach(function(x){var g=String(x.status||"").toLowerCase();if(g!=="pass")L.push("[ ] "+x.name+" ("+g+"): "+(x.note||""))});
+  (r.vague||[]).forEach(function(v){L.push("[ ] Replace “"+v.quote+"”: "+v.fix)});
+  (r.missing||[]).forEach(function(m){L.push("[ ] Add: "+m.item)});
+  (r.requirements||[]).forEach(function(q){L.push("[ ] Make testable: "+q.text+" → "+q.criteria)});
+  (r.questions||[]).forEach(function(q){L.push("[ ] Answer: "+q)});
+  return L.join("\n");
+}
+function copy(t,btn){
+  function done(){btn.textContent="Copied";setTimeout(function(){btn.textContent="Copy as checklist"},1500)}
+  try{navigator.clipboard.writeText(t).then(done,fallback)}catch(e){fallback()}
+  function fallback(){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();
+    try{document.execCommand("copy");done()}catch(e){btn.textContent="Copy failed"}document.body.removeChild(a)}
+}
+
+
+$("ex").onclick=function(){prd.value=SAMPLE;$("fchip").hidden=true;prd.focus()};
+
+var fi=$("file"),drop=$("drop");
+function readFile(f){
+  if(!f)return;
+  if(f.size>5*1024*1024){st.className="hint err";st.textContent="That file is too large (max 5 MB).";return}
+  var n=f.name.toLowerCase();
+  st.className="hint";st.textContent="Reading "+f.name+"…";
+  function put(t){
+    t=(t||"").trim();
+    if(!t){st.className="hint err";st.textContent="No readable text found in that file.";return}
+    prd.value=t;
+    showChip(f,t.length>12000);
+    st.className="hint";st.textContent="";
+  }
+  function fail(){st.className="hint err";st.textContent="Couldn’t read that file. Try pasting the text instead."}
+  if(/\.(txt|md|markdown)$/.test(n)||f.type.indexOf("text/")===0){
+    var r=new FileReader();r.onload=function(){put(r.result)};r.onerror=fail;r.readAsText(f);
+  }else if(/\.docx$/.test(n)){
+    if(!window.mammoth){fail();return}
+    var r2=new FileReader();
+    r2.onload=function(){window.mammoth.extractRawText({arrayBuffer:r2.result}).then(function(x){put(x.value)},fail)};
+    r2.onerror=fail;r2.readAsArrayBuffer(f);
+  }else{
+    st.className="hint err";st.textContent="Supported files: .txt, .md and .docx. For PDFs, paste the text instead.";
+  }
+}
+fi.onchange=function(){readFile(fi.files[0]);fi.value=""};
+drop.onclick=function(){fi.click()};
+drop.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();fi.click()}};
+function showChip(f,cut){
+  var chip=$("fchip");chip.textContent="";chip.hidden=false;
+  var kb=f.size/1024;
+  var size=kb<1024?Math.max(1,Math.round(kb))+" KB":(kb/1024).toFixed(1)+" MB";
+  chip.appendChild(el("span","fn",f.name));
+  chip.appendChild(el("span","hint",size+(cut?" · first 12,000 characters will be reviewed":"")));
+  var rm=el("button","rm","Remove");
+  rm.onclick=function(){prd.value="";chip.hidden=true;chip.textContent=""};
+  chip.appendChild(rm);
+}
+["dragenter","dragover"].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add("on")})});
+["dragleave","drop"].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove("on")})});
+drop.addEventListener("drop",function(e){readFile(e.dataTransfer&&e.dataTransfer.files[0])});
+prd.addEventListener("dragover",function(e){e.preventDefault()});
+prd.addEventListener("drop",function(e){if(e.dataTransfer&&e.dataTransfer.files.length){e.preventDefault();readFile(e.dataTransfer.files[0])}});
+["dragover","drop"].forEach(function(ev){window.addEventListener(ev,function(e){e.preventDefault()})});
+go.onclick=function(){
+  var t=prd.value.trim();
+  if(t.length<40){st.textContent="Paste a longer draft first.";st.className="hint err";return}
+  go.disabled=true;st.className="hint";st.textContent="Reviewing…";out.textContent="";
+  fetch("/api/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t.slice(0,12000)})}).then(function(res){return res.json().then(function(j){if(!res.ok){var er=new Error(j.error||"failed");er.code=j.code;throw er}return j})}).then(function(r){
+    try{render(parse(r.text));st.textContent=""}
+    catch(e){st.textContent="Couldn’t read the review. Please try again.";st.className="hint err"}
+  }).catch(function(e){
+    st.className="hint err";
+    st.textContent=e&&e.code==="rate_limited"?"Too many requests. Wait a moment and retry.":"Something went wrong. Please try again.";
+  }).then(function(){go.disabled=false});
+};
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "name": "prd-reviewer",
+  "version": "1.0.0",
+  "description": "AI tool that reviews product requirements documents (PRDs) before they reach engineering.",
+  "private": true,
+  "engines": { "node": ">=18" }
+}
