@@ -187,12 +187,12 @@ go.onclick=function(){
   var t=prd.value.trim();
   if(t.length<40){st.textContent="Paste a longer draft first.";st.className="hint err";return}
   go.disabled=true;st.className="hint";st.textContent="Reviewing…";out.textContent="";
-  fetch("/api/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t.slice(0,12000)})}).then(function(res){return res.json().then(function(j){if(!res.ok){var er=new Error(j.error||"failed");er.code=j.code;throw er}return j})}).then(function(r){
+  fetch("/api/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t.slice(0,12000)})}).then(function(res){return res.text().then(function(tx){var j=null;try{j=JSON.parse(tx)}catch(e){}if(!res.ok){var er=new Error(j&&j.error?j.error:(res.status===404?"The review function wasn’t found at /api/review. Check that the api folder is in your GitHub repo.":"Server error "+res.status));er.code=j&&j.code;throw er}if(!j)throw new Error("The server sent an unreadable reply.");return j})}).then(function(r){
     try{render(parse(r.text));st.textContent=""}
     catch(e){st.textContent="Couldn’t read the review. Please try again.";st.className="hint err"}
   }).catch(function(e){
     st.className="hint err";
-    st.textContent=e&&e.code==="rate_limited"?"Too many requests. Wait a moment and retry.":"Something went wrong. Please try again.";
+    st.textContent=e&&e.code==="rate_limited"?"Too many requests. Wait a moment and retry.":(e&&e.message&&e.message!=="Failed to fetch"?e.message:"Couldn’t reach the server. Check your connection and try again.");
   }).then(function(){go.disabled=false});
 };
 })();
