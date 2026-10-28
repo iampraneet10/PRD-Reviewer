@@ -24,6 +24,7 @@ button.p{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weig
 textarea{box-shadow:0 1px 3px rgba(0,0,0,.05)}
 #status{text-align:center;margin-top:12px;min-height:1.4em}
 .get{margin-top:34px}
+.note{text-align:center;color:var(--mute);font-size:.84rem;margin:22px auto 0;max-width:520px}
 .get h2{text-align:center;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:0 0 14px;font-weight:600}
 .get ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .get li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
@@ -68,7 +69,8 @@ button:disabled{opacity:.55;cursor:default}
 <div class="fchip" id="fchip" hidden></div>
 <div class="row">
 <button class="p" id="go">Review my PRD</button>
-<button id="ex">Try a sample</button>
+<button id="ex">Try a weak sample</button>
+<button id="ex2">Try a strong sample</button>
 </div>
 <div class="hint" id="status"></div>
 <section class="get" aria-label="What you’ll get">
@@ -82,6 +84,7 @@ button:disabled{opacity:.55;cursor:default}
 <li><b>Engineering questions</b><span>What your developers will likely ask, before they ask it.</span></li>
 </ul>
 </section>
+<p class="note">Runs entirely in your browser: your PRD is never uploaded or stored. Reviews use rule-based checks, not AI, so treat them as a fast first pass.</p>
 <div id="out"></div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -91,6 +94,63 @@ var $=function(id){return document.getElementById(id)};
 var prd=$("prd"),go=$("go"),out=$("out"),st=$("status");
 var SAMPLE="Feature: Smart Reminders\n\nGoal: Make the app more engaging and user friendly.\n\nUsers get reminders at the right time. The system should send notifications quickly and be reliable. Users can customize reminders. Support all major devices. The experience should feel seamless.\n\nRequirements:\n1. Notifications are fast.\n2. Users can edit reminders easily.\n3. The feature should scale.";
 var last=null;
+
+/*CORE*/
+var RULES=[
+["fast|quick(?:ly)?|speedy|snappy|rapid(?:ly)?","performance","State a target, e.g. “responds in ≤ [X] ms for 95% of requests”."],
+["seamless(?:ly)?|smooth(?:ly)?|frictionless","experience","Define it as observable behavior, e.g. “no more than [N] taps and no page reload”."],
+["easy|easily|simple|simply|intuitive(?:ly)?|user[- ]friendly","usability","Use a task metric, e.g. “[X]% of new users finish [task] in under [N] minutes unaided”."],
+["scal(?:e|es|able|ability)","scale","Give numbers: “supports [N] concurrent users with p95 latency under [X] ms”."],
+["reliabl[ey]|robust|stable|highly available","reliability","Set a target, e.g. “99.9% uptime” or “fewer than [N] failed requests per 1,000”."],
+["efficient(?:ly)?|optimi[sz]ed?|performant|high[- ]performance","efficiency","Name the resource and limit, e.g. “completes in ≤ [X] s using ≤ [N] MB”."],
+["all (?:major |modern |popular )?(?:devices|browsers|platforms)|cross[- ]platform","coverage","List the exact devices, OS and browser versions that must work."],
+["etc\\.?|and so on|and more|as needed|as appropriate|if necessary|when needed","open-ended","Replace with the complete list, or the rule that decides it."],
+["improv(?:e|es|ed|ing)|increas(?:e|es|ed|ing)|boost|enhanc(?:e|es|ed|ing)|reduc(?:e|es|ed|ing)|decreas(?:e|es|ed|ing)|go(?:es)? (?:up|down)|better|higher|lower","change","Add a baseline, a target and a time window, e.g. “from [A]% to [B]% within [N] weeks”."],
+["asap|soon|shortly|eventually|in the future","timing","Give a date or milestone."],
+["best[- ]in[- ]class|world[- ]class|delight(?:ful)?|engaging|modern|user[- ]centric","fluffy","Describe the concrete behavior or outcome you want."],
+["should be able to|ideally|hopefully|nice to have|if possible","soft wording","Use “must” or “will”, or mark it explicitly as optional."]];
+function hit(s){for(var i=0;i<RULES.length;i++){var m=s.match(new RegExp("\\b(?:"+RULES[i][0]+")(?![a-z])","i"));if(m)return{m:m[0],r:RULES[i],all:i}}return null}
+function analyze(raw){
+var T=raw.toLowerCase(),lines=raw.split(/\n+/),words=(raw.match(/\S+/g)||[]).length;
+if(words<30)return{score:0,verdict:"That’s too short to review. Paste the full PRD or spec.",vague:[],missing:[],requirements:[],questions:[],scorecard:[]};
+var has=function(r){return r.test(T)},cnt=function(a){return a.filter(has).length};
+var vague=[],seen={},vs=0;
+raw.split(/\n+|(?<=[.!?])\s+/).map(function(x){return x.replace(/^\s*(?:\d+[.)]|[-*•#>]+)\s*/,"").trim()}).filter(Boolean).forEach(function(s){
+if(/\d/.test(s))return;var any=false;
+RULES.forEach(function(r){var m=s.match(new RegExp("\\b(?:"+r[0]+")(?![a-z])","i"));if(m){any=true;var k=m[0].toLowerCase();if(!seen[k]&&vague.length<8){seen[k]=1;vague.push({quote:m[0],issue:"“"+m[0]+"” can’t be tested ("+r[1]+"). Found in: “"+s.slice(0,90)+(s.length>90?"…":"")+"”",fix:r[2]})}}});
+if(any)vs++});
+var items=lines.filter(function(l){return /^\s*(?:\d+[.)]|[-*•])\s+\S/.test(l)}).map(function(l){return l.replace(/^\s*(?:\d+[.)]|[-*•])\s+/,"").trim()});
+var weak=[];items.forEach(function(it){if(/\d/.test(it))return;var h=hit(it);if(h)weak.push({text:it,problem:"“"+h.m+"” has no measurable target, so QA can’t pass or fail it.",criteria:"Given [context], when [user action], then [observable result]. "+h.r[2]})});
+var C=[];
+function add(n,st,hint,why,q){C.push({name:n,status:st,note:st==="pass"?"Covered.":(st==="partial"?"Only partly covered. ":"Not found. ")+hint,why:why,q:q})}
+function lvl(c,p,h){return c>=p?"pass":c>=h?"partial":"fail"}
+add("Problem statement",has(/\b(problem|background|context|pain points?|motivation|opportunity|why now)\b/)?"pass":has(/\b(goal|objective|overview|summary)\b/)?"partial":"fail","Add a short background: who struggles, with what, and how you know.","Engineering can build the wrong thing when the problem isn’t stated.","What problem are we solving, and what evidence shows it’s real?");
+add("Target user",has(/target (?:users?|audience|customers?)|personas?|segments?|user types?|primary users?/)?"pass":has(/\b(users?|customers?|merchants?|admins?|buyers?)\b/)?"partial":"fail","Name who this is for and who it is not for.","Design and edge cases depend on who the user is.","Who exactly is the primary user, and who is excluded?");
+var mi=-1;lines.some(function(l,i){if(/success metrics?|kpis?|okrs?|metrics?\s*[:\-]|goals?\s*[:\-]/i.test(l)){mi=i;return true}});
+var mt=mi>=0?lines.slice(mi,mi+4).join(" "):"";
+add("Measurable goals and success metrics",mi>=0&&/\d+\s?(%|ms|s\b|sec|min|x\b|k\b|hours?|days?|weeks?)|\d{2,}|[$₹]\s?\d/.test(mt)?"pass":(mi>=0||has(/\bmetrics?\b|\bkpis?\b/))?"partial":"fail","Give each metric a baseline, a target and a time window.","Without a number nobody can say whether the feature worked.","How will we know this worked: which metric, from what baseline, to what target, by when?");
+var sc=has(/\bscope\b|in[- ]scope|\bv1\b|\bmvp\b|phase 1/),oo=has(/out[- ]of[- ]scope|non[- ]goals?|not in scope|won[’']t (?:do|include)|will not/);
+add("Scope and out-of-scope",sc&&oo?"pass":sc||oo?"partial":"fail","State what is in v1 and what is explicitly out.","Unstated scope turns into scope creep.","What is explicitly out of scope for v1?");
+var total=items.length,wr=total?weak.length/total:1;
+add("Testable requirements",total>=3&&wr<=.2?"pass":total>=2&&wr<=.6?"partial":"fail",total?weak.length+" of "+total+" listed requirements are vague or have no acceptance criteria.":"Write requirements as a numbered list with acceptance criteria.","QA and engineering need a clear pass or fail for every requirement.","What are the acceptance criteria for each requirement?");
+add("Edge cases",lvl(cnt([/edge cases?|corner cases?/,/\bempty\b|no results|zero results/,/invalid|malformed|unsupported/,/duplicate/,/offline|no connection|no network/,/concurren|race condition|simultaneous/,/maximum|minimum|at most|exceeds?|rate limit/,/expired?|already exists|no longer/,/what happens (?:if|when)/]),3,2),"List unusual inputs and states: empty, invalid, duplicate, expired, over the limit.","Edge cases found late cost the most to fix.","What should happen with empty, invalid, duplicate or over-limit input?");
+add("Error states",lvl(cnt([/\berrors?\b/,/\bfail(?:s|ed|ure|ures)?\b/,/time-?out/,/\bretry|retries\b/,/fallback|graceful/,/unavailable|outage|\bis down\b/,/error message|toast|banner/]),3,2),"Say what users see and what the system does when a call fails or times out.","Failures will happen, and the behavior must be designed.","What does the user see if a dependency is down or times out?");
+add("Dependencies and risks",has(/dependenc|depends on|third[- ]party|vendor|\bapi\b|integrations?|blocked by|prerequisite/)&&has(/\brisks?\b|assumptions?|mitigation|constraints?/)?"pass":has(/dependenc|depends on|third[- ]party|vendor|\bapi\b|integrations?|blocked by|prerequisite|\brisks?\b|assumptions?|mitigation|constraints?/)?"partial":"fail","List dependencies, assumptions, key risks and how you will reduce them.","Unlisted dependencies are what delay launches.","What are we depending on, and what is the plan if it slips?");
+add("Privacy, security and compliance",lvl(cnt([/privacy|\bpii\b|personal data|consent|data retention|gdpr|dpdp/,/security|secure|encrypt/,/authenticat|authori[sz]|permissions?|access control/,/compliance|regulat/]),2,1),"State what data is collected, who can access it, and any legal requirements.","Privacy and security gaps are expensive to fix after launch.","What personal data is involved, and who may access it?");
+var tl=has(/timeline|milestones?|deadline|launch|release|\bq[1-4]\b|\b20\d\d\b|sprint|\bweeks?\b|by (?:end of )?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/),ow=has(/\bowners?\b|\bdri\b|responsible|stakeholders?|\bpm\b|eng(?:ineering)? lead|designer|approvers?|raci|reviewers?/);
+add("Timeline and ownership",tl&&ow?"pass":tl||ow?"partial":"fail","Add milestones with dates, and name an owner for each area.","Without dates and owners, nobody is accountable.","Who owns each part, and what are the key dates?");
+var ro=has(/rollout|roll out|phased|feature flags?|beta|pilot|a\/b|experiment|canary|gradual|staged/),tr=has(/analytics|tracking|track\b|events?\b|instrument|dashboard|telemetry|funnel|mixpanel|amplitude|ga4/);
+add("Rollout and analytics tracking",ro&&tr?"pass":ro||tr?"partial":"fail","Describe how it ships (flag, beta, phases) and which events you will track.","If nothing is tracked, success can’t be measured.","How will it roll out, and which events must be tracked on day one?");
+var p=0,h=0,f=0;C.forEach(function(c){c.status==="pass"?p++:c.status==="partial"?h++:f++});
+var bad=C.filter(function(c){return c.status!=="pass"}).sort(function(a,b){return(a.status==="fail"?0:1)-(b.status==="fail"?0:1)});
+var q=bad.map(function(c){return c.q});
+if(has(/\btbd\b|to be decided|to be determined/))q.unshift("Several details are marked TBD. Who decides each one, and by when?");
+if(/open questions?\s*[:\-]?\s*(?:none|n\/a|nil)\b/i.test(raw))q.unshift("“Open questions: None” is rarely true. What has the team not agreed on yet?");
+var pen=Math.min(15,vs*2),score=Math.max(0,Math.min(100,Math.round((p+h*.5)/C.length*100-pen)));
+var vd=score>=80?"Nearly ready for engineering.":score>=55?"Needs work before handoff.":score>=30?"Not ready: key sections are missing.":"Early draft: most basics are missing.";
+return{score:score,verdict:vd+" "+p+" pass, "+h+" partial, "+f+" fail across 11 checks"+(pen?", minus "+pen+" for vague wording":"")+".",scorecard:C.map(function(c){return{name:c.name,status:c.status,note:c.note}}),vague:vague,missing:bad.slice(0,7).map(function(c){return{item:c.name,why:(c.status==="partial"?"Partly covered. ":"")+c.why}}),requirements:weak.slice(0,5),questions:q.slice(0,8)}}
+/*END*/
+
 
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
 function card(title){var c=el("div","card");c.appendChild(el("h2",null,title));return c}
@@ -153,6 +213,8 @@ function copy(t,btn){
 
 
 $("ex").onclick=function(){prd.value=SAMPLE;$("fchip").hidden=true;prd.focus()};
+var GOOD="PRD: Saved Addresses at Checkout\n\nBackground\nReturning customers re-enter their shipping address on every order. 14% of support tickets last quarter were about wrong addresses, and checkout completion for returning customers is 61%.\n\nTarget users\nLogged-in returning customers (at least one past order) on web and the Android and iOS apps.\n\nGoals and success metrics\n- Raise returning-customer checkout completion from 61% to 68% within 8 weeks of launch.\n- Cut address-related support tickets by 30% within 12 weeks.\n\nScope (v1)\n1. Users can save up to 5 addresses; one is the default.\n2. At checkout the default address is pre-selected and can be switched in one tap.\n3. Address validation returns a result in under 800 ms for 95% of requests.\nOut of scope: guest checkout, billing addresses, international addresses.\n\nEdge cases and errors\nIf validation times out after 3 s, accept the address and flag it for review. If a saved address is no longer serviceable, show an error message and ask the user to choose another. Duplicate addresses are merged. Deleting the default promotes the most recent address.\n\nPrivacy and security\nAddresses are PII: encrypted at rest, deletable on request, retained per our data retention policy.\n\nDependencies and risks\nAddress validation API (vendor confirmed). Risk: vendor outage. Mitigation: fall back to manual entry.\n\nRollout and tracking\nFeature flag, 10% beta, then 100%. Track events: address_saved, address_selected, checkout_completed. Dashboard owned by Analytics.\n\nTimeline and owners\nPM: Asha. Eng lead: Ravi. Design complete by 15 Nov; launch 10 Dec 2026.";
+$("ex2").onclick=function(){prd.value=GOOD;$("fchip").hidden=true;prd.focus()};
 
 var fi=$("file"),drop=$("drop");
 function readFile(f){
@@ -201,14 +263,9 @@ prd.addEventListener("drop",function(e){if(e.dataTransfer&&e.dataTransfer.files.
 go.onclick=function(){
   var t=prd.value.trim();
   if(t.length<40){st.textContent="Paste a longer draft first.";st.className="hint err";return}
-  go.disabled=true;st.className="hint";st.textContent="Reviewing…";out.textContent="";
-  fetch("/api/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t.slice(0,12000)})}).then(function(res){return res.text().then(function(tx){var j=null;try{j=JSON.parse(tx)}catch(e){}if(!res.ok){var er=new Error(j&&j.error?j.error:(res.status===404?"The review function wasn’t found at /api/review. Check that the api folder is in your GitHub repo.":"Server error "+res.status));er.code=j&&j.code;throw er}if(!j)throw new Error("The server sent an unreadable reply.");return j})}).then(function(r){
-    try{render(parse(r.text));st.textContent=""}
-    catch(e){st.textContent="Couldn’t read the review. Please try again.";st.className="hint err"}
-  }).catch(function(e){
-    st.className="hint err";
-    st.textContent=e&&e.code==="rate_limited"?"Too many requests. Wait a moment and retry.":(e&&e.message&&e.message!=="Failed to fetch"?e.message:"Couldn’t reach the server. Check your connection and try again.");
-  }).then(function(){go.disabled=false});
+  st.className="hint";st.textContent="";
+  render(analyze(t));
+  out.scrollIntoView({behavior:"smooth",block:"start"});
 };
 })();
 </script>
